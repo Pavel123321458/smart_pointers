@@ -1,0 +1,80 @@
+g++ -std=c++17 -Iinclude src/main.cpp src/ui.cpp src/benchmark.cpp -o main && ./main
+
+g++ -std=c++17 -g -fsanitize=address -Iinclude src/main.cpp src/ui.cpp src/benchmark.cpp -o main && ./main
+
+valgrind --leak-check=full ./tests_run
+
+g++ -O2 -Iinclude src/benchmark.cpp -o benchmark && ./benchmark
+
+g++ -std=c++17 -Iinclude tests/functional_tests.cpp -o tests_run -lgtest -lgtest_main -pthread && ./tests_run
+
+/home/pavel/smart_pointers
+
+#pragma once
+#include <cstddef>
+#include <utility>
+#include "UnqPtr.h"
+#include <type_traits>
+
+template <typename T>
+class ShrdPtr {
+private:
+    UnqPtr<T>* unqPtr;
+    size_t* referenceCount;
+
+public:
+    ShrdPtr(UnqPtr<T>&& other)
+        : unqPtr(new UnqPtr<T>(std::move(other))), referenceCount(new size_t(1)) {}
+
+    ShrdPtr(const ShrdPtr& other)
+        : unqPtr(other.unqPtr), referenceCount(other.referenceCount) {
+        ++(*referenceCount);
+    }
+
+    ShrdPtr& operator=(const ShrdPtr& other) {
+        if (this != &other) {
+            if (--(*referenceCount) == 0) {
+                delete unqPtr;
+                delete referenceCount;
+            }
+            unqPtr = other.unqPtr;
+            referenceCount = other.referenceCount;
+            ++(*referenceCount);
+        }
+        return *this;
+    }
+
+    ~ShrdPtr() {
+        if (--(*referenceCount) == 0) {
+            delete unqPtr;
+            delete referenceCount;
+        }
+    }
+
+    template <typename> friend class ShrdPtr;
+
+    template <typename U, typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+    ShrdPtr(const ShrdPtr<U>& other)
+        : unqPtr(dynamic_cast<UnqPtr<T>*>(other.unqPtr)),
+          referenceCount(other.referenceCount) {
+            ++(*referenceCount);
+          }
+    
+    
+
+    T& operator*() const { return **unqPtr; }
+    T* operator->() const { return unqPtr->get(); }
+    T* get() const { return unqPtr->get(); }
+
+    size_t use_count() const { return *referenceCount; }
+
+    void reset(UnqPtr<T>&& other) {
+        if (unqPtr == &other) return;
+        if (--(*referenceCount) == 0) {
+            delete unqPtr;
+            delete referenceCount;
+        }
+        unqPtr = new UnqPtr<T>(std::move(other));
+        referenceCount = new size_t(1);
+    }
+};

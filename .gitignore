@@ -1,0 +1,19 @@
+# Бинарники
+main
+benchmark
+tests_run
+
+# Сборка
+build/
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
